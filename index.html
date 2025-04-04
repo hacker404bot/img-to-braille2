@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Braille Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(45deg, #4A148C, #880E4F, #F50057);
+            background-size: 400% 400%;
+            animation: gradientBG 5s infinite alternate;
+            padding: 20px;
+            color: #ffffff;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        input, button {
+            margin: 10px;
+            padding: 12px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+        }
+
+        button {
+            background: linear-gradient(45deg, #FFD700, #FF4500);
+            color: white;
+            font-weight: bold;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #00FF00, #008000);
+        }
+
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: #fff;
+        }
+
+        .braille {
+            font-size: 24px;
+            color: #00FFFF;
+            text-shadow: 0px 0px 15px #00FFFF;
+            animation: glow 1.5s infinite alternate;
+        }
+        @keyframes glow {
+            from { text-shadow: 0px 0px 8px rgba(0, 255, 255, 0.8); }
+            to { text-shadow: 0px 0px 20px rgba(0, 255, 255, 1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🔠 Braille Text Converter ⠃⠗⠁⠊⠇⠇⠑</h2>
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="processImage()">📷 Convert to Braille</button>
+        <button onclick="speakText()">🔊 Speak Extracted Text</button>
+        <div id="output"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/2.1.0/tesseract.min.js"></script>
+    <script>
+        let extractedText = "";
+
+        const braille = {
+            'a': '⠁', 'b': '⠃', 'c': '⠉', 'd': '⠙', 'e': '⠑',
+            'f': '⠋', 'g': '⠛', 'h': '⠓', 'i': '⠊', 'j': '⠚',
+            'k': '⠅', 'l': '⠇', 'm': '⠍', 'n': '⠝', 'o': '⠕',
+            'p': '⠏', 'q': '⠟', 'r': '⠗', 's': '⠎', 't': '⠞',
+            'u': '⠥', 'v': '⠧', 'w': '⠺', 'x': '⠭', 'y': '⠽', 'z': '⠵',
+            ' ': ' ', '.': '⠲', ',': '⠂', '?': '⠦', '!': '⠖', '-': '⠤'
+        };
+
+        function convertToBraille(text) {
+            return text.toLowerCase().split('').map(char => braille[char] || '?').join('');
+        }
+
+        async function processImage() {
+            const fileInput = document.getElementById('imageInput');
+            if (!fileInput.files.length) {
+                alert("Please select an image.");
+                return;
+            }
+            const file = fileInput.files[0];
+            if (!file.type.startsWith("image/")) {
+                alert("Invalid file type. Please upload an image.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                try {
+                    const image = new Image();
+                    image.src = event.target.result;
+
+                    image.onload = async function() {
+                        const { createWorker } = Tesseract;
+                        const worker = await createWorker();
+                        await worker.load();
+                        await worker.loadLanguage('eng');
+                        await worker.initialize('eng');
+                        const { data: { text } } = await worker.recognize(image);
+                        await worker.terminate();
+
+                        extractedText = text.trim();
+                        const brailleText = convertToBraille(extractedText);
+
+                        document.getElementById('output').innerHTML = `<h3>Results</h3>
+                            <p><strong>Extracted Text:</strong> ${extractedText || "No text detected."}</p>
+                            <p><strong>Braille:</strong> <span class="braille">${brailleText}</span></p>`;
+                    };
+                } catch (error) {
+                    console.error("Error processing image:", error);
+                    alert("An error occurred while processing the image. Please try again.");
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function speakText() {
+            if (!extractedText) {
+                alert("No text extracted yet.");
+                return;
+            }
+            const speech = new SpeechSynthesisUtterance(extractedText);
+            speech.rate = 1;
+            speech.pitch = 1;
+            window.speechSynthesis.speak(speech);
+        }
+    </script>
+</body>
+</html>
